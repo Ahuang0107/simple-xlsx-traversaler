@@ -1,21 +1,65 @@
 mod serde_struct;
 mod utils;
 
+pub fn get_sheet_names(file: &std::fs::File) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let workbook: serde_struct::Workbook = {
+        let reader = std::io::BufReader::new(file);
+        let mut archive = zip::ZipArchive::new(reader)?;
+        let workbook = archive.by_name("xl/workbook.xml")?;
+        let workbook_reader = std::io::BufReader::new(workbook);
+        quick_xml::de::from_reader(workbook_reader)?
+    };
+    Ok(workbook
+        .sheets
+        .sheet
+        .iter()
+        .map(|sheet| sheet.name.clone())
+        .collect())
+}
+
 pub fn traversal(
-    file: std::fs::File,
+    file: &std::fs::File,
+    sheet: &str,
     row_limit: usize,
 ) -> Result<Vec<Vec<String>>, Box<dyn std::error::Error>> {
+    let workbook: serde_struct::Workbook = {
+        let reader = std::io::BufReader::new(file);
+        let mut archive = zip::ZipArchive::new(reader)?;
+        let workbook = archive.by_name("xl/workbook.xml")?;
+        let workbook_reader = std::io::BufReader::new(workbook);
+        quick_xml::de::from_reader(workbook_reader)?
+    };
+    let sheet = workbook
+        .sheets
+        .sheet
+        .iter()
+        .find(|s| s.name == sheet)
+        .unwrap();
+
+    let relationships: serde_struct::Relationships = {
+        let reader = std::io::BufReader::new(file);
+        let mut archive = zip::ZipArchive::new(reader)?;
+        let workbook = archive.by_name("xl/_rels/workbook.xml.rels")?;
+        let workbook_reader = std::io::BufReader::new(workbook);
+        quick_xml::de::from_reader(workbook_reader)?
+    };
+    let rel = relationships
+        .relationship
+        .iter()
+        .find(|rel| rel.id == sheet.id)
+        .unwrap();
+
     let shared_strings: serde_struct::SharedString = {
-        let reader = std::io::BufReader::new(&file);
+        let reader = std::io::BufReader::new(file);
         let mut archive = zip::ZipArchive::new(reader)?;
         let shared_strings_zip = archive.by_name("xl/sharedStrings.xml")?;
         let shared_strings_reader = std::io::BufReader::new(shared_strings_zip);
         quick_xml::de::from_reader(shared_strings_reader)?
     };
 
-    let reader = std::io::BufReader::new(&file);
+    let reader = std::io::BufReader::new(file);
     let mut archive = zip::ZipArchive::new(reader)?;
-    let mut sheet_zip = archive.by_name("xl/worksheets/sheet1.xml")?;
+    let mut sheet_zip = archive.by_name(&format!("xl/{}", rel.target))?;
     const CHUNK_LEN: usize = 1000;
     let mut buffer = [0u8; CHUNK_LEN];
     let mut in_sheet_data = false;
