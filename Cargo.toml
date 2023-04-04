@@ -9,3 +9,7 @@ edition = "2021"
 zip = { version = "0.6.4", default-features = false, features = ["deflate"] }
 serde = { version = "1", features = ["derive"] }
 quick-xml = { version = "0.27.1", features = ["serialize"] }
+
+[[example]]
+name = "check_top_100_rows"
+path = "examples/check_top_100_rows.rs"

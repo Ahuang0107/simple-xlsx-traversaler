@@ -1,3 +1,5 @@
+#[allow(dead_code)]
+
 /// return the column count and row count
 /// for example A1:I37 means have 9 column and 37 row
 pub(crate) fn parse_dimension_ref(value: &str) -> (usize, usize) {
