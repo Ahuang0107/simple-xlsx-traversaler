@@ -1,7 +1,17 @@
-#[allow(dead_code)]
+pub fn serde_from<T: serde::de::DeserializeOwned>(
+    file: &std::fs::File,
+    name: &str,
+) -> Result<T, Box<dyn std::error::Error>> {
+    let reader = std::io::BufReader::new(file);
+    let mut archive = zip::ZipArchive::new(reader)?;
+    let zip = archive.by_name(name)?;
+    let zip_reader = std::io::BufReader::new(zip);
+    Ok(quick_xml::de::from_reader(zip_reader)?)
+}
 
 /// return the column count and row count
 /// for example A1:I37 means have 9 column and 37 row
+#[allow(dead_code)]
 pub(crate) fn parse_dimension_ref(value: &str) -> (usize, usize) {
     let value: Vec<_> = value.split(":").collect();
     assert_eq!(value.len(), 2);

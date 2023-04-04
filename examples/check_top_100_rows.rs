@@ -1,10 +1,10 @@
-use simple_xlsx_traversaler::{get_sheet_names, traversal};
+use simple_xlsx_traversaler::Xlsx;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let file = std::fs::File::open("examples/example.xlsx")?;
-    let sheet_names = get_sheet_names(&file)?;
+    let xlsx = Xlsx::new(std::fs::File::open("examples/example.xlsx")?)?;
+    let sheet_names = xlsx.sheet_list();
     for sheet in sheet_names {
-        let data = traversal(&file, sheet.as_str(), 100)?;
+        let data = xlsx.traversal(sheet.as_str(), 100)?;
         println!("{sheet} read {} rows", data.len());
     }
     Ok(())
