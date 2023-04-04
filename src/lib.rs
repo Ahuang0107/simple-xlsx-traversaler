@@ -57,6 +57,14 @@ pub fn traversal(
         quick_xml::de::from_reader(shared_strings_reader)?
     };
 
+    let styles: serde_struct::StyleSheet = {
+        let reader = std::io::BufReader::new(file);
+        let mut archive = zip::ZipArchive::new(reader)?;
+        let zip = archive.by_name("xl/styles.xml")?;
+        let zip_reader = std::io::BufReader::new(zip);
+        quick_xml::de::from_reader(zip_reader)?
+    };
+
     let reader = std::io::BufReader::new(file);
     let mut archive = zip::ZipArchive::new(reader)?;
     let mut sheet_zip = archive.by_name(&format!("xl/{}", rel.target))?;
@@ -98,12 +106,45 @@ pub fn traversal(
     for row in rows {
         let mut row_data: Vec<String> = vec![];
         for col in row.c {
-            if col.is_shared_value() && col.v.is_some() {
-                let value = col.v.unwrap().parse::<usize>()?;
-                let value = &shared_strings.si[value];
-                row_data.push(value.t.clone());
-            } else if col.v.is_some() {
-                row_data.push(col.v.unwrap().clone());
+            if col.v.is_some() {
+                if let Some(t) = col.t {
+                    match t.as_str() {
+                        "s" => {
+                            // shared string
+                            let value = col.v.unwrap().parse::<usize>()?;
+                            let value = &shared_strings.si[value];
+                            row_data.push(value.t.clone());
+                        }
+                        _ => {
+                            row_data.push(col.v.unwrap().clone());
+                        }
+                    }
+                } else {
+                    if let Some(s) = col.s {
+                        if let Ok(s) = s.parse::<usize>() {
+                            let format_id = &styles.cell_xfs.xf[s].num_fmt_id;
+                            match format_id.as_str() {
+                                // mm-dd-yy
+                                "14" => {
+                                    let value = col.v.unwrap().parse::<i64>()?;
+                                    let days = value - 25569;
+                                    let secs = days * 86400;
+                                    row_data.push(
+                                        chrono::NaiveDateTime::from_timestamp_opt(secs, 0)
+                                            .unwrap()
+                                            .format("%F")
+                                            .to_string(),
+                                    );
+                                }
+                                _ => {
+                                    row_data.push(col.v.unwrap().clone());
+                                }
+                            }
+                        }
+                    } else {
+                        row_data.push(col.v.unwrap().clone());
+                    }
+                }
             }
         }
         data.push(row_data);
