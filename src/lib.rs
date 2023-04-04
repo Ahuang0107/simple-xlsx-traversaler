@@ -98,7 +98,7 @@ pub fn traversal(
     for row in rows {
         let mut row_data: Vec<String> = vec![];
         for col in row.c {
-            if col.t.is_some() && col.v.is_some() {
+            if col.is_shared_value() && col.v.is_some() {
                 let value = col.v.unwrap().parse::<usize>()?;
                 let value = &shared_strings.si[value];
                 row_data.push(value.t.clone());
